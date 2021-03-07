@@ -1,65 +1,51 @@
-import Head from 'next/head'
-import styles from '../styles/Home.module.css'
+import { Experiment, Variant, emitter, experimentDebugger } from '@marvelapp/react-ab-test';
+import mixpanel from 'mixpanel-browser';
+import { useEffect } from 'react';
+import axios from 'axios'
+
+mixpanel.init("NEXT_PUBLIC_MIXPANEL_TOKEN");
+
+experimentDebugger.enable();
+emitter.defineVariants('navbarButtonExperiment', ['button-one', 'button-two'], [50, 50]);
 
 export default function Home() {
-  return (
-    <div className={styles.container}>
-      <Head>
-        <title>Create Next App</title>
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
 
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
+    const onButtonClick = () => {
+        emitter.emitWin('navbarButtonExperiment');
+    }
 
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.js</code>
-        </p>
+    useEffect(() => {
+        // Called when the experiment is displayed to the user.
+        emitter.addPlayListener(function(experimentName, variantName) {
+            console.log(`Displaying experiment ${experimentName} variant ${variantName}`);
+        });
 
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h3>Documentation &rarr;</h3>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
 
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h3>Learn &rarr;</h3>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
+        // Called when a 'win' is emitted, in this case by this.refs.experiment.win()
+        emitter.addWinListener(function(experimentName, variantName) {
+            console.log(
+                `Variant ${variantName} of experiment ${experimentName} was clicked`
+            );
 
-          <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
-            className={styles.card}
-          >
-            <h3>Examples &rarr;</h3>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
+            axios.post('/api/user-track', { experimentName, variantName, experimentName }).then(() => {
+                alert('data sent!')
+            }).catch(err => {
+                alert('failed to send data')
+            })
+        });
+    })
 
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h3>Deploy &rarr;</h3>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
+    return (
+        <div>
+            <h1>Nextjs Split Testing</h1>
+            <Experiment name='navbarButtonExperiment'>
+                <Variant name='button-one'>
+                    <button onClick={() => onButtonClick()}>Button 1</button>
+                </Variant>
+                <Variant name='button-two'>
+                    <button onClick={() => onButtonClick()}>Button 2</button>
+                </Variant>
+            </Experiment>
         </div>
-      </main>
-
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <img src="/vercel.svg" alt="Vercel Logo" className={styles.logo} />
-        </a>
-      </footer>
-    </div>
-  )
+    )
 }
